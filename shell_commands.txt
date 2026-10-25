@@ -1,0 +1,122 @@
+from django.contrib.auth.models import User
+from news.models import Author, Category, Post, Comment
+
+# Создаём пользователей и авторов
+user1 = User.objects.create_user("alice", password="temporary-password-1")
+user2 = User.objects.create_user("bob", password="temporary-password-2")
+
+author1 = Author.objects.create(user=user1)
+author2 = Author.objects.create(user=user2)
+
+# Создаём четыре категории
+cat_sport = Category.objects.create(name="Спорт")
+cat_politics = Category.objects.create(name="Политика")
+cat_education = Category.objects.create(name="Образование")
+cat_technology = Category.objects.create(name="Технологии")
+
+# Создаём две статьи и одну новость
+post1 = Post.objects.create(
+    author=author1,
+    post_type=Post.ARTICLE,
+    title="Новые технологии в образовании",
+    text="В этой статье рассматривается применение современных технологий "
+         "в образовательном процессе и их влияние на обучение.",
+)
+
+post2 = Post.objects.create(
+    author=author2,
+    post_type=Post.ARTICLE,
+    title="Итоги спортивного сезона",
+    text="Спортивный сезон завершился яркими соревнованиями, рекордами "
+         "и важными победами участников.",
+)
+
+post3 = Post.objects.create(
+    author=author2,
+    post_type=Post.NEWS,
+    title="Открытие нового учебного центра",
+    text="В городе открылся новый учебный центр, где будут проводить "
+         "курсы по технологиям и цифровой грамотности.",
+)
+
+# Назначаем категории; у post1 — две категории
+post1.categories.add(cat_education, cat_technology)
+post2.categories.add(cat_sport)
+post3.categories.add(cat_education, cat_politics)
+
+# Создаём комментарии: комментарии есть у каждой публикации
+comment1 = Comment.objects.create(
+    post=post1,
+    user=user1,
+    text="Полезная статья!",
+)
+comment2 = Comment.objects.create(
+    post=post2,
+    user=user2,
+    text="Отличные итоги сезона.",
+)
+comment3 = Comment.objects.create(
+    post=post3,
+    user=user1,
+    text="Хорошая новость для города.",
+)
+comment4 = Comment.objects.create(
+    post=post1,
+    user=user2,
+    text="Жду продолжения темы.",
+)
+
+# Корректируем рейтинги публикаций
+post1.like()
+post1.like()
+post2.dislike()
+post3.like()
+
+# Корректируем рейтинги комментариев
+comment1.like()
+comment2.dislike()
+comment3.like()
+comment4.dislike()
+
+# Пересчитываем рейтинги авторов
+author1.update_rating()
+author2.update_rating()
+
+# Выводим username и рейтинг автора с наибольшим рейтингом
+best_author = (
+    Author.objects
+    .order_by("-rating")
+    .values("user__username", "rating")
+    .first()
+)
+print(best_author)
+
+# Находим лучшую статью по рейтингу
+best_article = (
+    Post.objects
+    .filter(post_type=Post.ARTICLE)
+    .select_related("author__user")
+    .order_by("-rating")
+    .first()
+)
+
+# Выводим дату, username автора, рейтинг, заголовок и превью статьи
+print(
+    best_article.created_at,
+    best_article.author.user.username,
+    best_article.rating,
+    best_article.title,
+    best_article.preview(),
+)
+
+# Выводим комментарии к лучшей статье:
+# дата, пользователь, рейтинг и текст
+article_comments = (
+    best_article.comments
+    .select_related("user")
+    .order_by("created_at")
+    .values_list("created_at", "user__username", "rating", "text")
+)
+
+for comment in article_comments:
+    print(comment)
